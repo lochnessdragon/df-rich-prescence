@@ -24,13 +24,13 @@ target_link_libraries(discord_sdk discord_game_sdk)
 DFHACK_PLUGIN(rich_presence src/main.cpp LINK_LIBRARIES discord_sdk discord_game_sdk)
 
 # read in variables from file
-file(READ .env ENV_FILE)
-message(STATUS ${ENV_FILE})
-add_compile_definitions(${ENV_FILE})
+# file(READ .env ENV_FILE)
+# message(STATUS ${ENV_FILE})
+# add_compile_definitions(${ENV_FILE})
 
 # create symlink to fix discord_game_sdk.so
 add_custom_command(TARGET rich_presence PRE_BUILD
     COMMAND ${CMAKE_COMMAND} -E create_symlink ${discordsdk_SOURCE_DIR}/lib/x86_64/discord_game_sdk.so ${discordsdk_SOURCE_DIR}/lib/x86_64/libdiscord_game_sdk.so)
 
-# add discord sdk include headers
+# add discord sdk include headers (todo: remove rpath)
 target_include_directories(rich_presence PUBLIC ${discordsdk_SOURCE_DIR}/)
