@@ -19,10 +19,12 @@ discord::Core* core{};
 DFHACK_PLUGIN("rich_presence");
 DFHACK_PLUGIN_IS_ENABLED(isPluginEnabled);
 
+// create a logger
 namespace DFHack {
     DBG_DECLARE(rich_presence, log, DebugCategory::LINFO);
 }
 
+// converts discord log levels to a string
 const char* logLevelToA(discord::LogLevel level) {
     switch (level) {
         case discord::LogLevel::Error:
@@ -38,23 +40,26 @@ const char* logLevelToA(discord::LogLevel level) {
     }
 }
 
+// discord log level printer
 void discordLog(discord::LogLevel level, const char* message) {
     // print debug message
     ERR(log).print("Discord [%s] - %s", logLevelToA(level), message);
 }
 
 bool initializeDiscord() {
-    // create discord integration
-    auto create_result = discord::Core::Create(APP_ID, (uint64_t) discord::CreateFlags::NoRequireDiscord, &core);
-    if(!core) {
-        ERR(log).printerr("Failed to create a discord instance! (err: %d)\n", static_cast<int>(create_result));
-        return false;
+    if(!isPluginEnabled) {
+        // create discord integration
+        auto create_result = discord::Core::Create(APP_ID, (uint64_t) discord::CreateFlags::NoRequireDiscord, &core);
+        if(!core) {
+            ERR(log).printerr("Failed to create a discord instance! (err: %d)\n", static_cast<int>(create_result));
+           return false;
+        }
+
+        // discord logging
+        core->SetLogHook(discord::LogLevel::Debug, discordLog);
+
+        isPluginEnabled = true;
     }
-
-    // discord logging
-    core->SetLogHook(discord::LogLevel::Debug, discordLog);
-
-    isPluginEnabled = true;
 
     return true;
 }
@@ -124,6 +129,18 @@ DFhackCExport DFHack::command_result plugin_enable(DFHack::color_ostream& out, b
 
         // delete the discord state
         deinitDiscord();
+    }
+
+    return DFHack::CR_OK;
+}
+
+DFhackCExport DFHack::command_result plugin_onstatechange(DFHack::color_ostream& out, DFHack::state_change_event event) {
+    switch (event) {
+    case DFHack::SC_WORLD_LOADED:
+        out.print("Setting new discord activity\n");
+        break;
+    default:
+        break;
     }
 
     return DFHack::CR_OK;
