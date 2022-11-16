@@ -5,6 +5,11 @@
 #include "DataDefs.h"
 #include "Debug.h"
 #include "cpp/discord.h"
+#include "modules/Maps.h"
+#include "modules/World.h"
+#include "modules/Translation.h"
+#include "df/world.h"
+#include "df/world_data.h"
 
 #define xstr(s) str(s)
 #define str(s) #s
@@ -51,8 +56,16 @@ bool initializeDiscord() {
         // create discord integration
         auto create_result = discord::Core::Create(APP_ID, (uint64_t) discord::CreateFlags::NoRequireDiscord, &core);
         if(!core) {
-            ERR(log).printerr("Failed to create a discord instance! (err: %d)\n", static_cast<int>(create_result));
-           return false;
+            switch(create_result) {
+                case discord::Result::InternalError:
+                    ERR(log).printerr("Failed to connect to the discord client, make sure it is running before your enable this plugin.\n");
+                    ERR(log).printerr("Run discord and then run: enable rich_presence to fix this problem.\n");
+                default:
+                    ERR(log).printerr("Failed to create a discord instance! (err: %d)\n", static_cast<int>(create_result));
+                    break;
+            }
+            
+            return false;
         }
 
         // discord logging
@@ -77,23 +90,87 @@ void deinitDiscord() {
     }
 }
 
+const char* getGameModeText(DFHack::t_gamemodes gamemode) {
+    switch (gamemode.g_type) {
+    case DFHack::GameType::DWARF_MAIN:
+        return "Fortress Mode";
+    case DFHack::GameType::DWARF_ARENA:
+        return "Arena Mode";
+    case DFHack::GameType::DWARF_TUTORIAL:
+        return "Stuck in the Tutorial";
+    case DFHack::GameType::DWARF_RECLAIM:
+        return "Reclaiming lost lands";
+    case DFHack::GameType::DWARF_UNRETIRE:
+        return "Coming back from a quick break";
+    case DFHack::GameType::ADVENTURE_MAIN:
+        return "Adventure Mode";
+    case DFHack::GameType::ADVENTURE_ARENA:
+        return "Adventure (Arena)";
+    case DFHack::GameType::ADVENTURE_DUNGEON:
+        return "Adventure (Dungeon)";
+    case DFHack::GameType::ADVENTURE_WORLD_DEBUG:
+        return "Adventure (Debug)";
+    case DFHack::GameType::VIEW_LEGENDS:
+        return "Legends Viewer";
+    default:
+        return "In the Menus";
+    }
+}
+
 void updateActivity() {
     if (isPluginEnabled) {
         // get activity stats
+        DFHack::t_gamemodes gamemode;
+        {
+            DFHack::CoreSuspender suspend;
+            DFHack::World::ReadGameMode(gamemode);
+        }
+
+        DEBUG(log).print("Got gamemode sucessfully\n");
+        const char* gameModeText = getGameModeText(gamemode);
+        DEBUG(log).print("Discord Rich Detected Gamemode: %s\n", gameModeText);
 
         // send update to discord client
         discord::Activity activity{};
         activity.SetType(discord::ActivityType::Playing);
-        activity.SetDetails("in Fortress mode");
-        activity.SetState("Working on Miitopia");
+        std::string worldName = DF2UTF(DFHack::Translation::TranslateName(&df::global::world->world_data->name));
+        DEBUG(log).print("Discord Rich Detected World: %s\n", worldName.c_str());
+
+        std::string fortressName = "Test Fort";
+        // activity detail text
+        activity.SetDetails(gameModeText);
+
+        std::string fortStr = "Working on " + fortressName;
+
+        if(DFHack::World::isFortressMode(gamemode.g_type)) {
+            activity.SetState(fortStr.c_str());
+        } else {
+            std::string worldDiscoveryStr = "In" + worldName;
+            activity.SetState(worldDiscoveryStr.c_str());
+        }
+
+        // activity images
+        discord::ActivityAssets& activityImgs = activity.GetAssets();
+        activityImgs.SetLargeImage("df_discord_logo");
+        activityImgs.SetLargeText("Dwarf Fortress");
+        if(DFHack::World::isFortressMode(gamemode.g_type)) {
+            activityImgs.SetSmallImage("fortress_mode_logo");
+                activityImgs.SetSmallText(fortressName.c_str());
+        } else {
+                activityImgs.SetSmallImage("dwarf_fortress_classic");
+                activityImgs.SetSmallText(gameModeText);
+        }
+        
+        // activity start time
         uint64_t now = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
         activity.GetTimestamps().SetStart(now);
 
+        // update the activity
         core->ActivityManager().UpdateActivity(activity, [&](discord::Result result) {
             if (result != discord::Result::Ok) {
                 ERR(log).printerr("Failed to update discord activity!\n");
             } else {
-                DEBUG(log).print("Updated discord activity successfully\n");
+                DEBUG(log).print("Updated discord activity successfully!\n");
             }
         });
     }
@@ -112,7 +189,9 @@ DFhackCExport DFHack::command_result plugin_onupdate(DFHack::color_ostream& out)
 
 DFhackCExport DFHack::command_result plugin_enable(DFHack::color_ostream& out, bool enabled) {
     if(enabled) {
+        out.color(DFHack::color_ostream::color_value::COLOR_GREEN);
         out.print("Enabling discord rich presence\n");
+        out.reset_color();
 
         // create the discord state
         if(!isPluginEnabled) {
@@ -125,7 +204,9 @@ DFhackCExport DFHack::command_result plugin_enable(DFHack::color_ostream& out, b
         }
 
     } else {
+        out.color(DFHack::color_ostream::color_value::COLOR_YELLOW);
         out.print("Disabling discord rich presence\n");
+        out.reset_color();
 
         // delete the discord state
         deinitDiscord();
@@ -152,6 +233,7 @@ DFhackCExport DFHack::command_result plugin_init(DFHack::color_ostream& out, std
         isPluginEnabled = false;
     } else {
         // plugin enabled is automatically set
+        out.print("[DF Rich Presence] Updating the user's activity\n");
         // set users activity
         updateActivity();
     }
@@ -160,7 +242,10 @@ DFhackCExport DFHack::command_result plugin_init(DFHack::color_ostream& out, std
     commands.push_back(DFHack::PluginCommand("rich_presence", "Configure the discord rich presence plugin.", rich_presence, false, 
         "rich_presence : configures the discord rich presence plugin\n"));
     
-    out.print("Rich presence started!\n");
+    out.print("Rich presence setup successfully\n");
+    out.color(DFHack::color_ostream::color_value::COLOR_CYAN);
+    out.print("If you encounter any errors, please report them to: https://github.com/lochnessdragon/df-rich-presence/issues\n");
+    out.reset_color();
 
     return DFHack::CR_OK;
 }
