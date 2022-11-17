@@ -24,10 +24,12 @@ jobs:
     - uses: actions/checkout@v3
       with:
         path: dfhack/plugins/external/df-rich-presence
-    - name: Read the contents of Dir
+    - name: Unblock the required files
       run: |
            dir
            Get-ExecutionPolicy
+           Unblock-File -path .\generate-MSVC-all.bat
+           Unblock-File -path .\build-release.bat
       working-directory: dfhack/build/win64/
 
     - name: Configure CMake
