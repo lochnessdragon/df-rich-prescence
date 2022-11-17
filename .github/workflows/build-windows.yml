@@ -25,7 +25,9 @@ jobs:
       with:
         path: dfhack/plugins/external/df-rich-presence
     - name: Read the contents of Dir
-      run: dir
+      run: |
+           dir
+           Get-ExecutionPolicy
       working-directory: dfhack/build/win64/
 
     - name: Configure CMake
