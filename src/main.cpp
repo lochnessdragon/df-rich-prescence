@@ -1,3 +1,6 @@
+#define NOMINMAX 
+#define UNICODE
+#define STRICT
 #include "Core.h"
 #include "Console.h"
 #include "Export.h"

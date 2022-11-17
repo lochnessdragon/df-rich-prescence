@@ -14,7 +14,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(discordSDK)
 # build discord sdk stuff
-project(discord_game_sdk)
+project(discord_sdk)
 file(GLOB SDK_SOURCES ${discordsdk_SOURCE_DIR}/cpp/*.cpp)
 add_library(discord_sdk STATIC ${SDK_SOURCES})
 link_directories(${discordsdk_SOURCE_DIR}/lib/x86_64/)
