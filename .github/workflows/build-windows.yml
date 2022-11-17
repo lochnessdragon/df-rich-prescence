@@ -26,8 +26,6 @@ jobs:
         path: dfhack/plugins/external/df-rich-presence
     - name: Unblock the required files
       run: |
-           dir
-           Get-ExecutionPolicy
            Unblock-File -path .\generate-MSVC-all.bat
            Unblock-File -path .\build-release.bat
       working-directory: dfhack/build/win64/
@@ -35,11 +33,11 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: generate-MSVC-all.bat
+      run: cmd.exe /c "generate-MSVC-all.bat"
       working-directory: dfhack/build/win64/
 
     - name: Build
       # Build your program with the given configuration
-      run: build-release.bat
+      run: cmd.exe /c "build-release.bat"
       working-directory: dfhack/build/win64/
 
