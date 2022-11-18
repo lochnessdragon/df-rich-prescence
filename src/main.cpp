@@ -1,6 +1,9 @@
+#ifdef _WIN32
 #define NOMINMAX 
 #define UNICODE
 #define STRICT
+#endif 
+
 #include "Core.h"
 #include "Console.h"
 #include "Export.h"
@@ -91,7 +94,7 @@ void deinitDiscord() {
     if (isPluginEnabled) {
         core->ActivityManager().ClearActivity([&](discord::Result result) {
             if(result != discord::Result::Ok) {
-                ERR(log).printerr(LOG_STR "Error clearing activity\n");
+                ERR(log).printerr(LOG_STR "Error clearing activity err=%d\n", static_cast<int>(result));
             }
         });
         delete core;
@@ -230,7 +233,7 @@ void updateActivity() {
         // update the activity
         core->ActivityManager().UpdateActivity(activity, [&](discord::Result result) {
             if (result != discord::Result::Ok) {
-                ERR(log).printerr(LOG_STR "Failed to update discord activity.\n");
+                ERR(log).printerr(LOG_STR "Failed to update discord activity. err=%d\n", static_cast<int>(result));
             } else {
                 DEBUG(log).print(LOG_STR "Updated discord activity successfully!\n");
             }
