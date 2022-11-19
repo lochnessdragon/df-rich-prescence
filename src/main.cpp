@@ -26,6 +26,7 @@
 #define APP_ID 1041967020620648508
 
 #define LOG_STR "[Discord RPC]: "
+#define USAGE_STR "rich_presence: tools to manipulate the Discord Rich Presence plugin\n" " - update : force a rich presence update (use this if discord has desynced with dwarf fortress)\n" " - data : shows what data this plugin is able to pull from dwarf fortress. (mostly for developers only)\n" " - help : displays this message\n"
 
 // global variables
 // bool core_initialized = false; core should always be initialized when the plugin is enabled.
@@ -247,10 +248,7 @@ void updateActivity() {
 }
 
 void usage(DFHack::color_ostream& out) {
-    out.print("rich_presence: tools to manipulate the Discord Rich Presence plugin");
-    out.print(" - update : force a rich presence update (use this if discord has desynced with dwarf fortress)");
-    out.print(" - data : shows what data this plugin is able to pull from dwarf fortress. (mostly for developers only)");
-    out.print(" - help : displays this message");
+    out.print(USAGE_STR);
 }
 
 // rich presence command callback
@@ -350,8 +348,7 @@ DFhackCExport DFHack::command_result plugin_init(DFHack::color_ostream& out, std
     }
 
     // create df commands
-    commands.push_back(DFHack::PluginCommand("rich_presence", "Configure the discord rich presence plugin.", rich_presence, false, 
-        "rich_presence : configures the discord rich presence plugin\n"));
+    commands.push_back(DFHack::PluginCommand("rich_presence", "Configure the discord rich presence plugin.", rich_presence, false, USAGE_STR));
     
     out.print(LOG_STR "Rich presence setup successfully\n");
     out.color(DFHack::color_ostream::color_value::COLOR_CYAN);
