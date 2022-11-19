@@ -18,6 +18,7 @@
 #include "df/world_data.h"
 #include "df/ui.h"
 #include "df/world_site.h"
+#include "df/language_name.h"
 
 #define xstr(s) str(s)
 #define str(s) #s
@@ -35,6 +36,7 @@ uint64_t pluginStartTime;
 DFHACK_PLUGIN("rich_presence");
 DFHACK_PLUGIN_IS_ENABLED(isPluginEnabled);
 REQUIRE_GLOBAL(world);
+REQUIRE_GLOBAL(ui);
 
 // create a logger
 namespace DFHack {
@@ -171,19 +173,22 @@ DFState getDFData() {
            DFHack::World::isAdventureMode(state.gamemode.g_type) ||
            DFHack::World::isLegends(state.gamemode.g_type)
         ) {
-            state.worldName = DF2UTF(DFHack::Translation::TranslateName(&df::global::world->world_data->name));
-            state.hasWorldName = true;
+            if(df::global::world->world_data != nullptr) {
+                state.worldName = DF2UTF(DFHack::Translation::TranslateName(&df::global::world->world_data->name));
+                state.hasWorldName = true;
+            }
         }
 
         // try to read the fortress name
         if(DFHack::World::isFortressMode(state.gamemode.g_type)) {
             // df::global::ui->fortress_rank (Outpost, etc.)
-            df::language_name fortLangName = df::global::ui->main.fortress_site->name;
-            state.fortName = DF2UTF(DFHack::Translation::TranslateName(&fortLangName, false));
-            state.fortNameEnglish = DF2UTF(DFHack::Translation::TranslateName(&fortLangName, true));
-            state.fortDesignation = getFortressDesignation(df::global::ui->fortress_rank);
-
-            state.hasFortName = true;
+            if(df::global::ui->main.fortress_site != nullptr) {
+                df::language_name fortLangName = df::global::ui->main.fortress_site->name;
+                state.fortName = DF2UTF(DFHack::Translation::TranslateName(&fortLangName, false));
+                state.fortNameEnglish = DF2UTF(DFHack::Translation::TranslateName(&fortLangName, true));
+                state.fortDesignation = getFortressDesignation(df::global::ui->fortress_rank);
+                state.hasFortName = true;
+            }
         }
     }
 
@@ -205,7 +210,7 @@ void updateActivity() {
         activity.SetDetails(gameModeText);
 
         // set activity state details
-        if(DFHack::World::isFortressMode(state.gamemode.g_type)) {
+        if(state.hasFortName) {
             std::string activityStr = std::string("Working on ") + std::string(state.fortDesignation) + " " + state.fortName;
             activity.SetState(activityStr.c_str());
         } else if (DFHack::World::isAdventureMode(state.gamemode.g_type) || DFHack::World::isLegends(state.gamemode.g_type)) {            
@@ -218,7 +223,7 @@ void updateActivity() {
         activityImgs.SetLargeImage("df_discord_logo");
         activityImgs.SetLargeText("Dwarf Fortress");
 
-        if(DFHack::World::isFortressMode(state.gamemode.g_type)) {
+        if(state.hasFortName) {
             activityImgs.SetSmallImage("fortress_mode_logo");
             std::string activityStr = std::string(state.fortDesignation) + " " + state.fortName;
             activityImgs.SetSmallText(activityStr.c_str());
@@ -241,18 +246,24 @@ void updateActivity() {
     }
 }
 
+void usage(DFHack::color_ostream& out) {
+    out.print("rich_presence: tools to manipulate the Discord Rich Presence plugin");
+    out.print(" - update : force a rich presence update (use this if discord has desynced with dwarf fortress)");
+    out.print(" - data : shows what data this plugin is able to pull from dwarf fortress. (mostly for developers only)");
+    out.print(" - help : displays this message");
+}
+
+// rich presence command callback
 DFHack::command_result rich_presence(DFHack::color_ostream& out, std::vector<std::string> & params) {
     
     if(!isPluginEnabled) {
         return DFHack::CR_WRONG_USAGE;
     }
 
-    for(auto parameter : params) {
-        out.print("%s\n", parameter.c_str());
-    }
     if(params.size() > 0) {
         if (params[0] == "help") {
             // print usage
+            usage(out);
         } else if (params[0] == "update") {
             out.print(LOG_STR "Updating Discord Rich Presence\n");
             updateActivity();
@@ -269,9 +280,12 @@ DFHack::command_result rich_presence(DFHack::color_ostream& out, std::vector<std
             if (state.hasFortName) {
                 out.print("Fort: %s %s \"%s\"\n", state.fortDesignation, state.fortName.c_str(), state.fortNameEnglish.c_str());
             }
+        } else {
+            usage(out);
         }
     } else {
         // print usage
+        usage(out);
     }
 
     return DFHack::CR_OK;
@@ -279,7 +293,7 @@ DFHack::command_result rich_presence(DFHack::color_ostream& out, std::vector<std
 
 // only runs when the plugin is enabled
 DFhackCExport DFHack::command_result plugin_onupdate(DFHack::color_ostream& out) {
-    core->RunCallbacks();
+    core->RunCallbacks(); // according to the discord sdk, this should be run once every game loop.
     return DFHack::CR_OK;
 }
 
