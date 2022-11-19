@@ -12,11 +12,17 @@ FetchContent_Declare(
   URL "https://dl-game-sdk.discordapp.net/3.2.1/discord_game_sdk.zip"
   URL_MD5 73e5e1b3f8413a2c7184ef17476822f2
   #CONFIGURE_COMMAND "ln -s lib/x86_64/discord_game_sdk.so lib/x86_64/libdiscord_game_sdk.so"
-	#DOWNLOAD_EXTRACT_TIMESTAMP true
+	#DOWNLOAD_EXTRACT_TIMESTAMP true I would add this but it somehow breaks CMake on my windows machine
 	BUILD_COMMAND ""
 )
 FetchContent_MakeAvailable(discordSDK)
-set(DISCORD_SDK_DLL ${discordsdk_SOURCE_DIR}/lib/x86_64/discord_game_sdk.so)
+if(WIN32)
+	set(DISCORD_SDK_DLL ${discordsdk_SOURCE_DIR}/lib/x86_64/discord_game_sdk.dll)
+	set(DISCORD_SDK_DLL_RENAME discord_game_sdk.dll)
+else()
+	set(DISCORD_SDK_DLL ${discordsdk_SOURCE_DIR}/lib/x86_64/discord_game_sdk.so)
+	set(DISCORD_SDK_DLL_RENAME libdiscord_game_sdk.so)
+endif()
 
 # build discord sdk stuff
 file(GLOB SDK_SOURCES ${discordsdk_SOURCE_DIR}/cpp/*.cpp)
@@ -50,4 +56,4 @@ target_include_directories(rich_presence PUBLIC ${discordsdk_SOURCE_DIR}/)
 # install the discord sdk dll as well when running the cmake install command
 install(FILES ${DISCORD_SDK_DLL}
         DESTINATION ${DFHACK_BINARY_DESTINATION}
-        RENAME libdiscord_game_sdk.so)
+        RENAME ${DISCORD_SDK_DLL_RENAME})
